@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>嗒嗒内部运费计算器（客服端）</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Source Han Sans CN", "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            padding: clamp(20px, 5vw, 40px) 15px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: -webkit-fill-available;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: clamp(25px, 6vw, 45px);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            max-width: 500px;
+            width: 100%;
+            margin-top: 20px;
+            border: 1px solid #ffffff;
+            position: relative;
+            overflow: visible !important; /* 关键：取消溢出裁剪 */
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #2563eb, #0891b2);
+        }
+
+        .client-tag {
+            text-align: center;
+            font-size: clamp(12px, 2vw, 13px);
+            color: #7c3aed;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            text-align: center;
+            color: #1e293b;
+            margin-bottom: clamp(30px, 5vw, 40px);
+            font-size: clamp(22px, 5vw, 28px);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #0891b2);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: clamp(20px, 4vw, 25px);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #475569;
+            font-size: clamp(15px, 2.5vw, 16px);
+            letter-spacing: 0.3px;
+        }
+
+        /* 新增：必填项标记样式 */
+        .required {
+            color: #dc2626;
+            margin-left: 4px;
+            font-weight: 700;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: clamp(12px, 2vw, 14px) clamp(14px, 2vw, 16px);
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: clamp(15px, 2.5vw, 17px);
+            transition: all 0.25s ease-in-out;
+            background: #f8fafc;
+            min-height: 50px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+
+        input.address-input {
+            min-height: 50px;
+            font-size: clamp(14px, 2.5vw, 16px);
+            padding: 12px 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        input.tel-input {
+            font-size: clamp(15px, 2.5vw, 17px);
+            letter-spacing: 1px;
+        }
+
+        .input-with-unit {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .input-with-unit input {
+            flex: 1;
+        }
+
+        .unit-label {
+            color: #475569;
+            font-size: clamp(15px, 2.5vw, 17px);
+            font-weight: 600;
+            white-space: nowrap;
+            letter-spacing: 0.2px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        input.address-input:focus {
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        input[readonly] {
+            background: #f1f5f9;
+            color: #1e293b;
+            cursor: not-allowed;
+            border-color: #cbd5e1;
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: clamp(14px, 2.5vw, 16px);
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: clamp(17px, 2.5vw, 18px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            margin-top: 15px;
+            min-height: 52px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calculate-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: all 0.25s ease-in-out;
+        }
+
+        .calculate-btn:hover {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+        }
+
+        .calculate-btn:hover::before {
+            left: 100%;
+        }
+
+        .calculate-btn:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+        }
+
+        .confirm-order-btn {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+            min-height: 44px;
+            margin-bottom: 10px;
+        }
+
+        .download-dispatch-btn {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease-in-out;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+            min-height: 44px;
+            position: relative;
+        }
+
+        .download-dispatch-btn.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .download-dispatch-btn.loading::after {
+            content: '';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .download-dispatch-btn:hover {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .confirm-order-btn:disabled,
+        .download-dispatch-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ========== 重点修复：结算模块样式 ========== */
+        .result {
+            margin-top: 35px;
+            padding: clamp(25px, 4vw, 30px);
+            background: #f8fafc !important; /* 强制实色背景 */
+            border-radius: 16px;
+            border: 1px solid #e2e8f0 !important; /* 强制实色边框 */
+            display: none;
+            /* 移除动画：避免截图时元素未完全渲染 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: visible !important; /* 关键：取消溢出裁剪 */
+        }
+
+        .order-time {
+            margin: 15px 0 20px 0;
+            font-size: clamp(13px, 2vw, 14px);
+            color: #475569;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f0fdf9; /* 替换rgba为实色 */
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+        }
+
+        .order-time.show {
+            display: flex;
+        }
+
+        .order-time-icon {
+            color: #10b981;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .order-time-text {
+            color: #047857;
+            font-weight: 700;
+        }
+
+        .btn-container {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .download-tip {
+            margin-top: 10px;
+            font-size: clamp(12px, 2vw, 13px);
+            color: #94a3b8;
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            background: #f0f4ff; /* 替换rgba为实色 */
+            display: none;
+        }
+
+        .download-tip.show {
+            display: block;
+        }
+
+        .download-tip.success {
+            color: #10b981;
+            background: #f0fdf9; /* 替换rgba为实色 */
+            border-left: 2px solid #10b981;
+        }
+
+        .result-module {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0; /* 替换rgba为实色 */
+        }
+
+        .result-module:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .module-title {
+            font-size: clamp(16px, 2.5vw, 18px);
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            letter-spacing: 0.3px;
+        }
+
+        .result-module:nth-child(2) .module-title {
+            border-bottom-color: #8b5cf6;
+            color: #6d28d9;
+        }
+
+        .result-module:nth-child(3) .module-title {
+            border-bottom-color: #0891b2;
+            color: #047857;
+        }
+
+        /* 派单模块样式 */
+        .result-module:nth-child(4) .module-title {
+            border-bottom-color: #f97316;
+            color: #c2410c;
+        }
+
+        .result-item {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            font-size: clamp(15px, 2.5vw, 16px);
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            border-bottom: 1px solid #e2e8f0; /* 替换rgba为实色 */
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item .label {
+            font-weight: 500;
+            flex: 1;
+            min-width: 130px;
+            letter-spacing: 0.2px;
+        }
+
+        .result-item .value {
+            font-weight: 700;
+            color: #2563eb;
+            flex: 0 0 auto;
+            letter-spacing: 0.3px;
+        }
+
+        /* 派单模块文字颜色 */
+        .dispatch-item .label {
+            color: #c2410c;
+            font-weight: 600;
+        }
+
+        .dispatch-item .value {
+            color: #f97316;
+        }
+
+        .customer-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #cbd5e1;
+            font-size: clamp(18px, 3vw, 20px);
+            font-weight: 800;
+            color: #dc2626;
+            letter-spacing: 0.5px;
+        }
+
+        .customer-total .value {
+            color: #dc2626;
+            text-shadow: 0 1px 2px rgba(220, 38, 38, 0.1);
+        }
+
+        .commission-item .label {
+            color: #7c3aed;
+            font-weight: 600;
+        }
+
+        .commission-item .value {
+            color: #6d28d9;
+        }
+
+        .commission-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #cbd5e1;
+            font-size: clamp(18px, 3vw, 20px);
+            font-weight: 800;
+        }
+
+        .commission-note {
+            font-size: clamp(12px, 2vw, 13px);
+            color: #94a3b8;
+            margin-top: 8px;
+            margin-left: auto;
+            text-align: right;
+            width: fit-content;
+            line-height: 1.6;
+            letter-spacing: 0.2px;
+        }
+
+        .driver-item .label {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .driver-item .value {
+            color: #047857;
+        }
+
+        .driver-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #cbd5e1;
+            font-size: clamp(18px, 3vw, 20px);
+            font-weight: 800;
+            color: #047857;
+            letter-spacing: 0.5px;
+        }
+
+        .driver-total .value {
+            color: #047857;
+            text-shadow: 0 1px 2px rgba(5, 150, 105, 0.1);
+        }
+
+        .driver-note {
+            font-size: clamp(12px, 2vw, 13px);
+            color: #94a3b8;
+            margin-top: 8px;
+            margin-left: auto;
+            text-align: right;
+            width: fit-content;
+            line-height: 1.6;
+            letter-spacing: 0.2px;
+        }
+
+        .tip-text, .mileage-tip, .loading-help-tip {
+            font-size: clamp(12px, 2vw, 13px);
+            color: #94a3b8;
+            margin-top: 8px;
+            line-height: 1.6;
+            padding-left: 4px;
+            letter-spacing: 0.2px;
+        }
+
+        .mileage-tip strong, .loading-help-tip strong {
+            color: #2563eb;
+            font-weight: 700;
+        }
+
+        .loading-help-tip strong {
+            color: #dc2626;
+        }
+
+        @media (max-width: 375px) {
+            .container {
+                padding: 20px 18px;
+            }
+            .result-item {
+                gap: 10px;
+            }
+            .result-item .label {
+                min-width: 110px;
+            }
+            .order-time {
+                font-size: 12px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            body {
+                align-items: center;
+                padding: 50px 20px;
+            }
+            .container {
+                margin-top: 0;
+                transform: translateY(0);
+                transition: all 0.25s ease-in-out;
+            }
+            .container:hover {
+                box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+                transform: translateY(-2px);
+            }
+        }
+
+        .screenshot-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .screenshot-modal.show {
+            display: flex;
+        }
+
+        .screenshot-content {
+            max-width: 95%;
+            max-height: 85%;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            /* 高清图片适配：强制图片抗锯齿 */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+
+        .screenshot-tip {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: clamp(14px, 3vw, 16px);
+            font-weight: 600;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            animation: pulse 2s infinite;
+            width: 90%;
+            line-height: 1.5;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.6);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease-in-out;
+        }
+
+        .close-modal:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="screenshotTarget">
+    <div class="client-tag">客服端</div>
+    <h2>嗒嗒内部运费计算器</h2>
+    
+    <div class="form-group">
+        <label>选择车型<span class="required">*</span></label>
+        <select id="carType" onchange="updateLoadingFee(); realtimeCalculate()">
+            <option value="car">小轿车/SUV 限重100公斤（起步价15元）</option>
+            <option value="smallVan">小型面包车 限重500公斤（起步价25元）</option>
+            <option value="midVan">中型面包车 限重1000公斤（起步价35元）</option>
+            <option value="bigVan">大型面包车 限重1200公斤（起步价45元）</option>
+            <option value="smallTruck">小卡车 限重1000公斤（起步价100元）</option>
+            <option value="midTruck">中卡车 限重1500公斤（起步价150元）</option>
+            <option value="bigTruck">大卡车 限重6000-10000公斤（起步价200元）</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>取货地址<span class="required">*</span></label>
+        <input type="text" id="pickupAddress" class="address-input" placeholder="请输入详细取货地址，例如：XX市XX区XX街道XX小区XX栋XX单元" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>发件人电话（取货人）<span class="required">*</span></label>
+        <input type="tel" id="senderPhone" class="tel-input" placeholder="请输入发件人手机号码，例如：13800138000" maxlength="11" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>终点地址<span class="required">*</span></label>
+        <input type="text" id="destinationAddress" class="address-input" placeholder="请输入详细终点地址，例如：XX市XX区XX街道XX小区XX栋XX单元" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>收件人电话（收货人）<span class="required">*</span></label>
+        <input type="tel" id="receiverPhone" class="tel-input" placeholder="请输入收件人手机号码，例如：13900139000" maxlength="11" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>行驶里程<span class="required">*</span></label>
+        <div class="input-with-unit">
+            <input type="number" id="mileage" placeholder="请输入行驶公里数，例如 25" min="0" step="0.1" oninput="realtimeCalculate()">
+            <span class="unit-label">KM</span>
+        </div>
+        <div class="mileage-tip">
+            <strong>提示：</strong>请您先确定里程距离以高德地图驾驶最短里程计算，最终价格以此为准
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>是否需要司机帮忙装卸</label>
+        <select id="isLoading" onchange="toggleLoadingFee(); realtimeCalculate()">
+            <option value="0">否</option>
+            <option value="1">是</option>
+        </select>
+        <div class="loading-help-tip">
+            <strong>说明：</strong>仅辅助帮忙装卸（辅助装卸范围为平地装平底卸，并非司机师傅一人全部装卸，超出一人搬运能力请加搬运工或自行装卸）
+        </div>
+    </div>
+
+    <div class="form-group" id="loadingFeeGroup" style="display: none;">
+        <label>对应车型装卸费</label>
+        <div class="input-with-unit">
+            <input type="number" id="loadingFee" placeholder="装卸费金额" value="0" readonly>
+            <span class="unit-label">元</span>
+        </div>
+        <div class="tip-text">注：金额根据所选车型自动匹配，不可手动修改</div>
+    </div>
+
+    <div class="form-group">
+        <label>是否需要额外装卸工</label>
+        <select id="extraLoader" onchange="realtimeCalculate()">
+            <option value="0">0人（无需）</option>
+            <option value="1">1人</option>
+            <option value="2">2人</option>
+            <option value="3">3人</option>
+        </select>
+        <div class="tip-text">注：额外装卸工每人费用95元</div>
+    </div>
+
+    <div class="form-group">
+        <label>是否需要辅助搬运上楼</label>
+        <select id="carryFloor" onchange="realtimeCalculate()">
+            <option value="0">0楼（无需）</option>
+            <option value="1">1楼</option>
+            <option value="2">2楼</option>
+            <option value="3">3楼</option>
+            <option value="4">4楼</option>
+            <option value="5">5楼</option>
+            <option value="6">6楼</option>
+            <option value="7">7楼</option>
+        </select>
+        <div class="tip-text">注：搬运上楼费用 = (司机1人 + 额外装卸工人数) × 楼层数 × 3元</div>
+    </div>
+
+    <!-- 新增：派单信息输入项（改为必填） -->
+    <div class="form-group">
+        <label>派单人<span class="required">*</span></label>
+        <input type="text" id="dispatcherName" placeholder="请输入派单人姓名（客服）" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>接单司机<span class="required">*</span></label>
+        <input type="text" id="driverName" placeholder="请输入接单司机姓名" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>车牌号<span class="required">*</span></label>
+        <input type="text" id="carNumber" placeholder="请输入车辆牌照号，例如：京A12345" oninput="realtimeCalculate()">
+    </div>
+
+    <div class="form-group">
+        <label>司机手机号<span class="required">*</span></label>
+        <input type="tel" id="driverPhone" class="tel-input" placeholder="请输入司机手机号码" maxlength="11" oninput="realtimeCalculate()">
+    </div>
+
+    <button class="calculate-btn" onclick="calculate()">计算总价</button>
+
+    <div class="result" id="resultBox">
+        <div class="result-module">
+            <div class="module-title">客户费用</div>
+            <div class="result-item">
+                <span class="label">基础运费：</span>
+                <span class="value">¥ <span id="freightPrice">0.00</span></span>
+            </div>
+            <div class="result-item">
+                <span class="label">基础装卸服务费：</span>
+                <span class="value">¥ <span id="loadingPrice">0.00</span></span>
+            </div>
+            <div class="result-item">
+                <span class="label">额外装卸工费用：</span>
+                <span class="value">¥ <span id="extraLoaderPrice">0.00</span></span>
+            </div>
+            <div class="result-item">
+                <span class="label">搬运上楼费用：</span>
+                <span class="value">¥ <span id="carryFloorPrice">0.00</span></span>
+            </div>
+            <div class="result-item customer-total">
+                <span class="label">客户最终报价：</span>
+                <span class="value">¥ <span id="customerTotalPrice">0.00</span></span>
+            </div>
+        </div>
+
+        <div class="result-module">
+            <div class="module-title">公司抽成</div>
+            <div class="result-item commission-item">
+                <span class="label">运费抽成(35%)：</span>
+                <span class="value">¥ <span id="freightCommission">0.00</span></span>
+            </div>
+            <div class="result-item commission-item">
+                <span class="label">基础装卸服务费抽成(5%)：</span>
+                <span class="value">¥ <span id="loadingCommission">0.00</span></span>
+            </div>
+            <div class="result-item commission-item">
+                <span class="label">额外装卸信息服务抽成(10%)：</span>
+                <span class="value">¥ <span id="extraLoaderCommission">0.00</span></span>
+            </div>
+            <div class="result-item commission-item">
+                <span class="label">搬运上楼抽成(0%)：</span>
+                <span class="value">¥ <span id="carryFloorCommission">0.00</span></span>
+            </div>
+            <div class="commission-note">该信息服务费为纳税开票所缴纳</div>
+            <div class="result-item commission-item commission-total">
+                <span class="label">公司总抽成：</span>
+                <span class="value">¥ <span id="totalCommission">0.00</span></span>
+            </div>
+        </div>
+
+        <div class="result-module">
+            <div class="module-title">司机结算</div>
+            <div class="result-item driver-item">
+                <span class="label">客户最终报价：</span>
+                <span class="value">¥ <span id="driverCustomerPrice">0.00</span></span>
+            </div>
+            <div class="result-item driver-item">
+                <span class="label">减去公司总抽成：</span>
+                <span class="value">¥ <span id="driverCommissionDeduct">0.00</span></span>
+            </div>
+            <div class="driver-note">司机结算佣金 = 客户最终报价 - 公司总抽成</div>
+            <div class="result-item driver-item driver-total">
+                <span class="label">司机最终结算佣金：</span>
+                <span class="value">¥ <span id="driverTotalPrice">0.00</span></span>
+            </div>
+        </div>
+
+        <!-- 新增：派单模块 -->
+        <div class="result-module">
+            <div class="module-title">派单信息</div>
+            <div class="result-item dispatch-item">
+                <span class="label">派单人：</span>
+                <span class="value" id="dispatcherNameDisplay">未填写</span>
+            </div>
+            <div class="result-item dispatch-item">
+                <span class="label">接单司机：</span>
+                <span class="value" id="driverNameDisplay">未填写</span>
+            </div>
+            <div class="result-item dispatch-item">
+                <span class="label">车牌号：</span>
+                <span class="value" id="carNumberDisplay">未填写</span>
+            </div>
+            <div class="result-item dispatch-item">
+                <span class="label">司机手机号：</span>
+                <span class="value" id="driverPhoneDisplay">未填写</span>
+            </div>
+        </div>
+
+        <div class="order-time" id="orderTime">
+            <span class="order-time-icon">✅</span>
+            <span>下单时间：<span class="order-time-text" id="orderTimeText"></span></span>
+        </div>
+
+        <div class="btn-container">
+            <button class="confirm-order-btn" id="confirmOrderBtn" disabled onclick="confirmOrder()">确认下单</button>
+            <button class="download-dispatch-btn" id="downloadDispatchBtn" disabled onclick="downloadDispatch()">点击生成派单图片</button>
+            <div class="download-tip" id="downloadTip">
+                提示：生成图片后长按保存到相册，所有手机均可操作
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="screenshot-modal" id="screenshotModal">
+    <span class="close-modal" onclick="closeScreenshotModal()">&times;</span>
+    <img src="" alt="运费单截图" class="screenshot-content" id="screenshotImage">
+    <div class="screenshot-tip">📱 长按图片 → 选择「保存图片」→ 自动存入手机相册</div>
+</div>
+
+<script>
+    let hasCalculated = false;
+    let hasOrdered = false;
+    
+    // 车型配置
+    const carConfig = {
+        car: { basePrice: 15, price1: 2, range1: 20, price2: 1.8, loadingFee: 10 },
+        smallVan: { basePrice: 25, price1: 3, range1: 20, price2: 2.5, loadingFee: 35 },
+        midVan: { basePrice: 35, price1: 3, range1: 20, price2: 2.5, loadingFee: 65 },
+        bigVan: { basePrice: 45, price1: 3, range1: 20, price2: 2.5, loadingFee: 85 },
+        smallTruck: { basePrice: 100, price1: 3.5, range1: 3, price2: 3.5, loadingFee:100  },
+        midTruck: { basePrice: 150, price1: 3.5, range1: 3, price2: 3.5, loadingFee: 150 },
+        bigTruck: { basePrice: 200, price1: 3.5, range1: 3, price2: 3.5, loadingFee: 200 }
+    };
+
+    const PRICE_CONFIG = {
+        extraLoader: 95,
+        carryFloorPerPerson: 3,
+        commission: {
+            freight: 0.35,
+            loading: 0.05,
+            extraLoader: 0.1,
+            carryFloor: 0
+        }
+    };
+
+    // ========== 新增：表单验证函数 ==========
+    function validateForm() {
+        // 1. 验证取货地址
+        const pickupAddress = document.getElementById('pickupAddress').value.trim();
+        if (!pickupAddress) {
+            alert('请填写详细的取货地址！');
+            document.getElementById('pickupAddress').focus();
+            return false;
+        }
+
+        // 2. 验证发件人电话（11位数字）
+        const senderPhone = document.getElementById('senderPhone').value.trim();
+        if (!senderPhone || senderPhone.length !== 11 || isNaN(senderPhone)) {
+            alert('请填写有效的11位发件人手机号码！');
+            document.getElementById('senderPhone').focus();
+            return false;
+        }
+
+        // 3. 验证终点地址
+        const destinationAddress = document.getElementById('destinationAddress').value.trim();
+        if (!destinationAddress) {
+            alert('请填写详细的终点地址！');
+            document.getElementById('destinationAddress').focus();
+            return false;
+        }
+
+        // 4. 验证收件人电话（11位数字）
+        const receiverPhone = document.getElementById('receiverPhone').value.trim();
+        if (!receiverPhone || receiverPhone.length !== 11 || isNaN(receiverPhone)) {
+            alert('请填写有效的11位收件人手机号码！');
+            document.getElementById('receiverPhone').focus();
+            return false;
+        }
+
+        // 5. 验证行驶里程（大于0的数字）
+        const mileage = document.getElementById('mileage').value.trim();
+        if (!mileage || isNaN(mileage) || Number(mileage) <= 0) {
+            alert('请填写有效的行驶里程（必须是大于0的数字）！');
+            document.getElementById('mileage').focus();
+            return false;
+        }
+
+        // 6. 验证派单人
+        const dispatcherName = document.getElementById('dispatcherName').value.trim();
+        if (!dispatcherName) {
+            alert('请填写派单人姓名！');
+            document.getElementById('dispatcherName').focus();
+            return false;
+        }
+
+        // 7. 验证接单司机
+        const driverName = document.getElementById('driverName').value.trim();
+        if (!driverName) {
+            alert('请填写接单司机姓名！');
+            document.getElementById('driverName').focus();
+            return false;
+        }
+
+        // 8. 验证车牌号
+        const carNumber = document.getElementById('carNumber').value.trim();
+        if (!carNumber) {
+            alert('请填写车辆牌照号！');
+            document.getElementById('carNumber').focus();
+            return false;
+        }
+
+        // 9. 验证司机手机号（11位数字）
+        const driverPhone = document.getElementById('driverPhone').value.trim();
+        if (!driverPhone || driverPhone.length !== 11 || isNaN(driverPhone)) {
+            alert('请填写有效的11位司机手机号码！');
+            document.getElementById('driverPhone').focus();
+            return false;
+        }
+
+        // 所有必填项验证通过
+        return true;
+    }
+
+    function updateLoadingFee() {
+        const carType = document.getElementById('carType').value;
+        const loadingFee = carConfig[carType].loadingFee;
+        document.getElementById('loadingFee').value = loadingFee;
+    }
+
+    function toggleLoadingFee() {
+        const isLoading = document.getElementById('isLoading').value;
+        const loadingFeeGroup = document.getElementById('loadingFeeGroup');
+        loadingFeeGroup.style.display = isLoading === '1' ? 'block' : 'none';
+    }
+
+    function calculateCore() {
+        const carType = document.getElementById('carType').value;
+        const mileage = Number(document.getElementById('mileage').value) || 0;
+        const isLoading = Number(document.getElementById('isLoading').value);
+        const loadingFee = Number(document.getElementById('loadingFee').value) || 0;
+        const extraLoaderNum = Number(document.getElementById('extraLoader').value) || 0;
+        const carryFloorNum = Number(document.getElementById('carryFloor').value) || 0;
+
+        const config = carConfig[carType];
+        let freightPrice = 0;
+        const baseMileage = 3;
+        if (mileage <= baseMileage && mileage > 0) {
+            freightPrice = config.basePrice;
+        } else if (mileage > baseMileage && mileage <= config.range1) {
+            freightPrice = config.basePrice + (mileage - baseMileage) * config.price1;
+        } else if (mileage > config.range1) {
+            freightPrice = config.basePrice + (config.range1 - baseMileage) * config.price1 + (mileage - config.range1) * config.price2;
+        }
+
+        const actualLoadingFee = isLoading ? loadingFee : 0;
+        const extraLoaderPrice = extraLoaderNum * PRICE_CONFIG.extraLoader;
+        const totalCarryPerson = 1 + extraLoaderNum;
+        const carryFloorPrice = totalCarryPerson * carryFloorNum * PRICE_CONFIG.carryFloorPerPerson;
+        const customerTotalPrice = freightPrice + actualLoadingFee + extraLoaderPrice + carryFloorPrice;
+
+        const freightCommission = freightPrice * PRICE_CONFIG.commission.freight;
+        const loadingCommission = actualLoadingFee * PRICE_CONFIG.commission.loading;
+        const extraLoaderCommission = extraLoaderPrice * PRICE_CONFIG.commission.extraLoader;
+        const carryFloorCommission = carryFloorPrice * PRICE_CONFIG.commission.carryFloor;
+        const totalCommission = freightCommission + loadingCommission + extraLoaderCommission + carryFloorCommission;
+        const driverTotalPrice = customerTotalPrice - totalCommission;
+
+        document.getElementById('freightPrice').textContent = freightPrice.toFixed(2);
+        document.getElementById('loadingPrice').textContent = actualLoadingFee.toFixed(2);
+        document.getElementById('extraLoaderPrice').textContent = extraLoaderPrice.toFixed(2);
+        document.getElementById('carryFloorPrice').textContent = carryFloorPrice.toFixed(2);
+        document.getElementById('customerTotalPrice').textContent = customerTotalPrice.toFixed(2);
+        
+        document.getElementById('freightCommission').textContent = freightCommission.toFixed(2);
+        document.getElementById('loadingCommission').textContent = loadingCommission.toFixed(2);
+        document.getElementById('extraLoaderCommission').textContent = extraLoaderCommission.toFixed(2);
+        document.getElementById('carryFloorCommission').textContent = carryFloorCommission.toFixed(2);
+        document.getElementById('totalCommission').textContent = totalCommission.toFixed(2);
+
+        document.getElementById('driverCustomerPrice').textContent = customerTotalPrice.toFixed(2);
+        document.getElementById('driverCommissionDeduct').textContent = totalCommission.toFixed(2);
+        document.getElementById('driverTotalPrice').textContent = driverTotalPrice.toFixed(2);
+
+        // 新增：更新派单信息显示
+        const dispatcherName = document.getElementById('dispatcherName').value.trim() || '未填写';
+        const driverName = document.getElementById('driverName').value.trim() || '未填写';
+        const carNumber = document.getElementById('carNumber').value.trim() || '未填写';
+        const driverPhone = document.getElementById('driverPhone').value.trim() || '未填写';
+        
+        document.getElementById('dispatcherNameDisplay').textContent = dispatcherName;
+        document.getElementById('driverNameDisplay').textContent = driverName;
+        document.getElementById('carNumberDisplay').textContent = carNumber;
+        document.getElementById('driverPhoneDisplay').textContent = driverPhone;
+
+        const confirmBtn = document.getElementById('confirmOrderBtn');
+        confirmBtn.disabled = !(hasCalculated && mileage > 0);
+    }
+
+    // ========== 修改：计算前先验证表单 ==========
+    function calculate() {
+        // 先执行表单验证，不通过则终止
+        if (!validateForm()) {
+            return;
+        }
+        
+        hasCalculated = true;
+        document.getElementById('resultBox').style.display = 'block';
+        calculateCore();
+        document.getElementById('downloadTip').classList.add('show');
+    }
+
+    function realtimeCalculate() {
+        if (hasCalculated) {
+            calculateCore();
+        }
+    }
+
+    // 高清截图核心优化
+    async function downloadDispatch() {
+        if (!hasOrdered) {
+            alert('请先点击「确认下单」完成下单后，再生成派单图片！');
+            return;
+        }
+        
+        const downloadBtn = document.getElementById('downloadDispatchBtn');
+        const downloadTip = document.getElementById('downloadTip');
+        
+        downloadBtn.disabled = true;
+        downloadBtn.classList.add('loading');
+        downloadTip.textContent = '正在生成高清派单图片，请稍候...';
+        
+        try {
+            const target = document.getElementById('screenshotTarget');
+            // 高清配置核心：
+            // 1. scale=2 → 2倍像素缩放（Retina屏级别的清晰度）
+            // 2. 强制设备像素比匹配
+            // 3. 延长超时时间确保高清渲染完成
+            const options = {
+                scale: 2, // 关键：2倍缩放（可改3倍，更高清但生成稍慢）
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                removeContainer: false,
+                allowTaint: true,
+                letterRendering: true, // 文字抗锯齿
+                imageTimeout: 15000, // 延长超时时间到15秒
+                windowWidth: target.scrollWidth,
+                windowHeight: target.scrollHeight,
+                // 适配高清屏
+                dpi: 300, // 模拟300DPI打印级清晰度
+                scaleMethod: 'canvas' // 优先canvas缩放保证清晰度
+            };
+
+            const canvas = await html2canvas(target, options);
+            // 强制100%质量生成PNG（第二个参数1.0是质量，范围0-1）
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            
+            // 处理高清图片渲染
+            const screenshotImage = document.getElementById('screenshotImage');
+            screenshotImage.src = imgData;
+            // 强制图片高清显示
+            screenshotImage.style.imageRendering = '-webkit-optimize-contrast';
+            screenshotImage.style.imageRendering = 'crisp-edges';
+            
+            document.getElementById('screenshotModal').classList.add('show');
+            
+            downloadTip.textContent = '✅ 高清图片生成成功！长按图片保存到相册';
+            downloadTip.classList.add('success');
+            
+        } catch (error) {
+            console.error('生成失败:', error);
+            downloadTip.textContent = '❌ 生成失败，请重试！';
+            downloadTip.classList.add('success');
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.classList.remove('loading');
+            setTimeout(() => {
+                downloadTip.textContent = '提示：生成图片后长按保存到相册，所有手机均可操作';
+                downloadTip.classList.remove('success');
+            }, 3000);
+        }
+    }
+
+    function closeScreenshotModal() {
+        document.getElementById('screenshotModal').classList.remove('show');
+    }
+
+    function confirmOrder() {
+        if (hasOrdered) return;
+        
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        
+        const timeStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        
+        document.getElementById('orderTimeText').textContent = timeStr;
+        document.getElementById('orderTime').classList.add('show');
+        
+        document.getElementById('confirmOrderBtn').disabled = true;
+        document.getElementById('confirmOrderBtn').textContent = '已下单';
+        document.getElementById('downloadDispatchBtn').disabled = false;
+        hasOrdered = true;
+    }
+
+    window.onload = function() {
+        updateLoadingFee();
+        toggleLoadingFee();
+    };
+</script>
+
+</body>
+</html>
